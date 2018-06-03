@@ -39,7 +39,13 @@ class HomeCurrencyPage extends StatelessWidget {
             new ListTile(
                 title: new Text("AUD"),
                 onTap: () {
-    
+                    // Here we should save the preferences
+                }
+            ),
+            new ListTile(
+                title: new Text("USD"),
+                onTap: () {
+                  // Here we should save the preferences
                 }
             )
           ],
