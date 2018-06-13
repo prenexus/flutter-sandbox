@@ -7,13 +7,14 @@
 // Choose base currency
 // Choose conversion currency
 
-
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:convert' show utf8, json;
-import 'dart:async';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async' show Future;
+//import 'package:shared_preferences/shared_preferences.dart';
 
+String fromCurrency = 'EUR';
+String toCurrency = 'AUD';
 
 void main() {
   runApp(new MaterialApp(
@@ -25,7 +26,6 @@ class MyApp extends StatefulWidget {
   @override
   MyAppState createState() => new MyAppState();
 }
-
 class HomeCurrencyPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -39,13 +39,14 @@ class HomeCurrencyPage extends StatelessWidget {
             new ListTile(
                 title: new Text("AUD"),
                 onTap: () {
-                    // Here we should save the preferences
+
+
                 }
             ),
             new ListTile(
                 title: new Text("USD"),
                 onTap: () {
-                  // Here we should save the preferences
+
                 }
             )
           ],
@@ -55,7 +56,6 @@ class HomeCurrencyPage extends StatelessWidget {
 
   }
 }
-
 class SettingsPage extends StatelessWidget{
   @override
   Widget build(BuildContext context)
@@ -99,8 +99,6 @@ class SettingsPage extends StatelessWidget{
 class MyAppState extends State<MyApp> {
   final _biggerFont = const TextStyle(fontSize: 24.0);
   double _exchangeRate = 1.0;
-  var _fromCurrency = 'AUD' ;
-  var _toCurrency  = 'AUD';
 
   var _lastUpdated = new DateTime.now();
 
@@ -110,29 +108,28 @@ class MyAppState extends State<MyApp> {
   var amount4 = 50;
   var amount5 = 100;
 
-  //Future<Null>
-  _readPrefs() async {
-  // Open the shared preferences and find our currencies.
-     SharedPreferences prefs = await SharedPreferences.getInstance();
-    _fromCurrency = (prefs.getString('fromCurrency') ?? 'EUR');
-    _toCurrency = (prefs.getString('toCurrency')?? 'AUD');
+  //Run this at app startup
+  @override
+  void initState(){
+    super.initState();
+
   }
 
-  _savePrefs(var homeOrAway, var currency) async {
-    // Save the preferences as required
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString(homeOrAway, currency);
+  @override
+  void dispose(){
+
+    super.dispose();
   }
 
   _getExchangeRate() async {
     // Get the exchange rate from free.currencyconverterapi.com
     // query = from_to . e.g AUD_USD
     // Returns a double value
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    _fromCurrency = (prefs.getString('fromCurrency') ?? 'EUR');
-    _toCurrency = (prefs.getString('toCurrency')?? 'AUD');
+    //SharedPreferences prefs = await SharedPreferences.getInstance();
+    //var fromCurrency = 'USD';
+   // var toCurrency = 'AUD';
 
-    var fromToCurrency = _fromCurrency + "_" + _toCurrency;
+    var fromToCurrency = fromCurrency + "_" + toCurrency;
 
     var url = 'https://free.currencyconverterapi.com/api/v5/convert?q=' +
         fromToCurrency;
@@ -167,13 +164,6 @@ class MyAppState extends State<MyApp> {
     });
   }
 
-  //Run this at app startup
-  @override
-  void initState(){
-    super.initState();
-    _readPrefs();
-  }
-
   @override
   Widget build(BuildContext context) {
     return new Scaffold (
@@ -193,7 +183,7 @@ class MyAppState extends State<MyApp> {
           ],
       ),
 
-      body: _buildScreen(),
+      body: _buildScreen(fromCurrency, toCurrency),
     );
   }
 
@@ -208,9 +198,10 @@ class MyAppState extends State<MyApp> {
 
   final TextEditingController _controller = new TextEditingController();
 
-  Widget _buildScreen() {
+  Widget _buildScreen(String fromCurrency, String toCurrency) {
     // Build the screen
-
+    print ("From Currency is currently:" + fromCurrency);
+    print ("To currency is currently: " + toCurrency);
     //Set the use of text themes
     final TextTheme textTheme = Theme.of(context).textTheme;
     //new Text('Display 3', style: textTheme.display3),
@@ -235,13 +226,13 @@ class MyAppState extends State<MyApp> {
               children: <Widget>[
                 new Column(
                   children: <Widget>[
-                    new Text( _fromCurrency ,style: textTheme.headline),
+                    new Text( fromCurrency ,style: textTheme.headline),
                   ],
                 ),
 
                 new Column(
                   children: <Widget>[
-                    new Text( _toCurrency , style: textTheme.headline),
+                    new Text( toCurrency , style: textTheme.headline),
                   ],
                 )
 
@@ -253,15 +244,7 @@ class MyAppState extends State<MyApp> {
             new Row(
               children: <Widget>[
 
-                // This is broken! Not sure why. Needs debugging. This is the hook for the manual rate.
 
-               // new TextField(
-//                  controller: _controller,
-  //                keyboardType: TextInputType.number,
-                  //decoration: new InputDecoration(
-              //      labelText: 'Exchange rate',
-                  //),
-    //            ),
               ],
             ),
 
