@@ -11,6 +11,7 @@ dependencies:
   cupertino_icons: ^0.1.0
   english_words: ^3.1.0
   shared_preferences: ^0.4.2
+  material_search: ^0.2.7
   intl:
   prefs:
    git:

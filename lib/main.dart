@@ -9,14 +9,55 @@
 
 import 'package:flutter/material.dart';
 import 'dart:io';
-import 'dart:convert' show utf8, json;
+import 'dart:convert';
 import 'dart:async' show Future;
-//import 'package:shared_preferences/shared_preferences.dart';
+//import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:material_search/material_search.dart';
 
-String fromCurrency = 'EUR';
+
+String fromCurrency = 'USD';
 String toCurrency = 'AUD';
+var _exchangeRate;
+var _lastUpdated;
 
-void main() {
+const _listCurrencies = const['AUD', 'EUR', 'USD'];
+const _listValues = [1,10,20,50,100,250];
+
+_getExchangeRate() async {
+
+  var fromToCurrency = fromCurrency + "_" + toCurrency;
+
+  var url = 'https://free.currencyconverterapi.com/api/v5/convert?q=' +
+      fromToCurrency;
+  var httpClient = new HttpClient();
+
+  try {
+    var request = await httpClient.getUrl(Uri.parse(url));
+    var response = await request.close();
+    if (response.statusCode == HttpStatus.OK) {
+      var jsonString = await response.transform(utf8.decoder).join();
+      print(jsonString);
+      Map<String, dynamic> decodedMap = json.decode(jsonString);
+      _exchangeRate = decodedMap['results'][fromToCurrency]['val'];
+      print(decodedMap['results'][fromToCurrency]['val']);
+      _lastUpdated = new DateTime.now();
+    } else {
+      print ('Error getting API data address:\nHttp status ${response.statusCode}');
+    }
+  } catch (exception) {
+    print ('Failed getting API data');
+    print (exception.toString());
+  }
+
+}
+
+// Main function
+void main() async {
+  // Retrieve list of currencies
+  await _getExchangeRate();
+
+  // Display the app
   runApp(new MaterialApp(
     home: new MyApp(),
   ));
@@ -26,6 +67,7 @@ class MyApp extends StatefulWidget {
   @override
   MyAppState createState() => new MyAppState();
 }
+
 class HomeCurrencyPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -40,7 +82,6 @@ class HomeCurrencyPage extends StatelessWidget {
                 title: new Text("AUD"),
                 onTap: () {
 
-
                 }
             ),
             new ListTile(
@@ -53,9 +94,10 @@ class HomeCurrencyPage extends StatelessWidget {
         )
     );
 
-
   }
 }
+
+// Display the settings pages
 class SettingsPage extends StatelessWidget{
   @override
   Widget build(BuildContext context)
@@ -98,9 +140,6 @@ class SettingsPage extends StatelessWidget{
 
 class MyAppState extends State<MyApp> {
   final _biggerFont = const TextStyle(fontSize: 24.0);
-  double _exchangeRate = 1.0;
-
-  var _lastUpdated = new DateTime.now();
 
   var amount1 = 1;
   var amount2 = 10;
@@ -121,48 +160,9 @@ class MyAppState extends State<MyApp> {
     super.dispose();
   }
 
-  _getExchangeRate() async {
-    // Get the exchange rate from free.currencyconverterapi.com
-    // query = from_to . e.g AUD_USD
-    // Returns a double value
-    //SharedPreferences prefs = await SharedPreferences.getInstance();
-    //var fromCurrency = 'USD';
-   // var toCurrency = 'AUD';
-
-    var fromToCurrency = fromCurrency + "_" + toCurrency;
-
-    var url = 'https://free.currencyconverterapi.com/api/v5/convert?q=' +
-        fromToCurrency;
-    var httpClient = new HttpClient();
-
-    try {
-      var request = await httpClient.getUrl(Uri.parse(url));
-      var response = await request.close();
-      if (response.statusCode == HttpStatus.OK) {
-        var jsonString = await response.transform(utf8.decoder).join();
-        print(jsonString);
-        Map<String, dynamic> decodedMap = json.decode(jsonString);
-        _exchangeRate = decodedMap['results'][fromToCurrency]['val'];
-        print(decodedMap['results'][fromToCurrency]['val']);
-        _lastUpdated = new DateTime.now();
-      } else {
-        print ('Error getting API data address:\nHttp status ${response.statusCode}');
-      }
-    } catch (exception) {
-      print ('Failed getting API data');
-      print (exception.toString());
-    }
-
-    // If the widget was removed from the tree while the message was in flight,
-    // we want to discard the reply rather than calling setState to update our
-    // non-existent appearance.
-    if (!mounted) return;
-
-    setState(() {
-      // _exchangeRate = result;
-
-    });
-  }
+  // Get the exchange rate from free.currencyconverterapi.com
+  // query = from_to . e.g AUD_USD
+  // Returns a double value
 
   @override
   Widget build(BuildContext context) {
@@ -170,6 +170,15 @@ class MyAppState extends State<MyApp> {
       appBar: new AppBar(
         title: new Text('Travel Currency Cheatsheet'),
         actions: <Widget>[
+          new IconButton(
+            icon: new Icon(Icons.refresh),
+            onPressed: ()
+                {
+                  //Need to refresh the widget?
+                  //setState(_getExchangeRate());
+                  _getExchangeRate();
+                }
+    ),
           new IconButton(
             icon: new Icon(Icons.settings),
             onPressed: ()
@@ -187,16 +196,7 @@ class MyAppState extends State<MyApp> {
     );
   }
 
-  void _onPressed() {
-    setState(() {
-      _exchangeRate = double.parse(_controller.text);
-      print(_exchangeRate);
-      print ('Last updated is' + _lastUpdated.toString());
-    }
-    );
-  }
-
-  final TextEditingController _controller = new TextEditingController();
+  //final TextEditingController _controller = new TextEditingController();
 
   Widget _buildScreen(String fromCurrency, String toCurrency) {
     // Build the screen
@@ -272,24 +272,6 @@ class MyAppState extends State<MyApp> {
             ),
 
 
-            new Row(
-              // Last update text
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: <Widget>[
-
-                new Text('Last updated: ' +
-                    _lastUpdated.day.toString() + '/' +
-                    _lastUpdated.month.toString() + '/' +
-                    _lastUpdated.year.toString() + ' ' +
-                    _lastUpdated.hour.toString() + ':' +
-                    _lastUpdated.minute.toString() + ' ' +
-                    _lastUpdated.timeZoneName.toString()
-                    ,textScaleFactor: .8),
-
-              ],
-            ),
-
-
             new Divider(height: 32.0, color: Colors.black),
 
             new Row(
@@ -308,11 +290,8 @@ class MyAppState extends State<MyApp> {
                     new Text((amount2 *_exchangeRate).toStringAsFixed(2), style:_biggerFont),
                   ],
                 )
-
               ],
-
             ),
-
 
             new Row(
               //Detail row 3
@@ -330,9 +309,7 @@ class MyAppState extends State<MyApp> {
                     new Text((amount3 *_exchangeRate).toStringAsFixed(2), style:_biggerFont),
                   ],
                 )
-
               ],
-
             ),
 
             new Row(
@@ -379,30 +356,22 @@ class MyAppState extends State<MyApp> {
 
             new Divider(height: 32.0, color: Colors.black),
 
+
             new Row(
-              //Total row
+              // Last update text
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: <Widget>[
 
-                new Column(
-                  children: <Widget>[
-                    new RaisedButton(
-                        child: new Text('Manual Rate'),
-
-                        onPressed: (){_onPressed();}),
-                  ],
-                ),
-
-                new Column(
-                  children: <Widget>[
-                    new RaisedButton(
-                      child: new Text('Web Rate'),
-                      onPressed: _getExchangeRate,),
-                  ],
-                )
+                new Text('Last updated: ' +
+                    _lastUpdated.day.toString() + '/' +
+                    _lastUpdated.month.toString() + '/' +
+                    _lastUpdated.year.toString() + ' ' +
+                    _lastUpdated.hour.toString() + ':' +
+                    _lastUpdated.minute.toString() + ' ' +
+                    _lastUpdated.timeZoneName.toString()
+                    ,textScaleFactor: .8),
 
               ],
-
             ),
 
 
