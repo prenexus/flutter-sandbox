@@ -21,9 +21,94 @@ String toCurrency = 'AUD';
 var _exchangeRate;
 var _lastUpdated;
 
-const _listCurrencies = const['AUD', 'EUR', 'USD'];
+const List _listOfCurrencies = [
+{
+    "currencyID": 'AUD',
+    "currencyName": 'Australian Dollar',
+    "currencySymbol": '\$'
+},
+{
+    "currencySymbol": '\$',
+    "currencyName": 'US Dollars',
+    "currencyID": 'USD'
+},
+{
+    "currencyName": 'Euro',
+    "currencySymbol": 'E',
+    "currencyID": 'EUR'
+}
+
+];
+
 const _listValues = [1,10,20,50,100,250];
 
+class CurrencyWidget extends StatelessWidget{
+  final String currencyName;
+  final String currencySymbol;
+  final String currencyID;
+
+  const CurrencyWidget({Key key, this.currencyName, this.currencySymbol, this.currencyID}) : super (key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return new Container(
+        decoration: new BoxDecoration(border: new Border.all(width: 1.0, color: Colors.grey), color: Colors.white70),
+        margin: new EdgeInsets.symmetric(vertical: 1.0),
+        child: new ListTile(
+          leading: new Text(currencySymbol),
+          title: new Text(currencyName),
+          subtitle: new Text(currencyID),
+          ),
+    );
+  }
+}
+
+//This class displays the drawer used on the main pages. This is our settings page
+class DrawerOnly extends StatelessWidget{
+  @override
+  Widget build (BuildContext context) {
+    return new Drawer(
+      child: new ListView(
+          children: <Widget>[
+            new DrawerHeader(
+              child: new Text('Settings'),
+              decoration: new BoxDecoration(color: Colors.blue),
+            ),
+
+            new ListTile(
+              title: new Text("Home Currency"),
+              onTap: () {
+                // Push currency list
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  new MaterialPageRoute(
+                      builder: (context) => new HomeCurrencyPage()),
+                );
+              },
+            ),
+
+            new ListTile(
+              title: new Text("Away Currency"),
+              onTap: () {
+                // Push currency list
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  new MaterialPageRoute(
+                      builder: (context) => new AwayCurrencyPage()),
+                );
+              },
+            )
+
+          ]
+      ),
+    );
+  }
+}
+
+
+// This routine returns a rate for a given currency pair from free.currencyconverterapi.com
 _getExchangeRate() async {
 
   var fromToCurrency = fromCurrency + "_" + toCurrency;
@@ -72,28 +157,21 @@ class HomeCurrencyPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return new Scaffold(
+        //drawer: new DrawerOnly(),
         appBar: new AppBar(
           title: new Text("Home Currency"),
         ),
         body:
-        new ListView(
-          children: <Widget>[
-            new ListTile(
-                title: new Text("AUD"),
-                onTap: () {
-
-                }
-            ),
-            new ListTile(
-                title: new Text("USD"),
-                onTap: () {
-
-                }
-            )
-          ],
-        )
+          new ListView.builder(itemBuilder: (BuildContext context, int index){
+            return new CurrencyWidget(
+              currencyID: _listOfCurrencies[index]['currencyID'],
+              currencyName: _listOfCurrencies[index]['currencyName'],
+              currencySymbol: _listOfCurrencies[index]['currencySymbol'],
+            );
+            },
+            itemCount: _listOfCurrencies.length,
+          )
     );
-
   }
 }
 
@@ -103,6 +181,7 @@ class SettingsPage extends StatelessWidget{
   Widget build(BuildContext context)
   {
     return new Scaffold(
+      drawer: new DrawerOnly(),
     appBar: new AppBar(
         title: new Text("Settings"),
       ),
@@ -167,8 +246,9 @@ class MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return new Scaffold (
+      drawer: new DrawerOnly(),
       appBar: new AppBar(
-        title: new Text('Travel Currency Cheatsheet'),
+        title: new Text('Currency Cheatsheet'),
         actions: <Widget>[
           new IconButton(
             icon: new Icon(Icons.refresh),
@@ -178,18 +258,9 @@ class MyAppState extends State<MyApp> {
                   //setState(_getExchangeRate());
                   _getExchangeRate();
                 }
-    ),
-          new IconButton(
-            icon: new Icon(Icons.settings),
-            onPressed: ()
-              {
-                Navigator.push(
-                  context,
-                  new MaterialPageRoute(builder: (context) => new SettingsPage()),
-                );
-              },
-            ),
-          ],
+          ),
+
+        ],
       ),
 
       body: _buildScreen(fromCurrency, toCurrency),
