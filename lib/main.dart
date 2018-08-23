@@ -33,14 +33,19 @@ const List _listOfCurrencies = [
     "currencyID": 'USD'
 },
 {
-    "currencyName": 'Euro',
+    "currencyName": 'Euro Dollars',
     "currencySymbol": 'E',
     "currencyID": 'EUR'
+},
+{
+  "currencyName": 'Japanese Yen',
+  "currencySymbol": 'Y',
+  "currencyID": 'JPY'
 }
 
 ];
 
-const _listValues = [1,10,20,50,100,250];
+//const _listValues = [1,10,20,50,100,250];
 
 class CurrencyWidget extends StatelessWidget{
   final String currencyName;
@@ -99,7 +104,21 @@ class DrawerOnly extends StatelessWidget{
                       builder: (context) => new AwayCurrencyPage()),
                 );
               },
+            ),
+
+            new ListTile(
+              title: new Text("Denominations"),
+              onTap: () {
+                // Push currency list
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  new MaterialPageRoute(
+                      builder: (context) => new DenominationsPage()),
+                );
+              },
             )
+
 
           ]
       ),
@@ -174,6 +193,114 @@ class HomeCurrencyPage extends StatelessWidget {
     );
   }
 }
+
+class AwayCurrencyPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return new Scaffold(
+      //drawer: new DrawerOnly(),
+        appBar: new AppBar(
+          title: new Text("Away Currency"),
+        ),
+        body:
+        new ListView.builder(itemBuilder: (BuildContext context, int index){
+          return new CurrencyWidget(
+            currencyID: _listOfCurrencies[index]['currencyID'],
+            currencyName: _listOfCurrencies[index]['currencyName'],
+            currencySymbol: _listOfCurrencies[index]['currencySymbol'],
+          );
+        },
+          itemCount: _listOfCurrencies.length,
+        )
+    );
+  }
+}
+
+
+class DenominationsPage extends StatefulWidget {
+  // This class displays the list of denominations for selected currency
+  // Users can add or remove the denominations they need
+
+  @override
+  _DenominationsPageWidgetState createState() =>
+      _DenominationsPageWidgetState();
+}
+
+
+class _DenominationsPageWidgetState extends State<DenominationsPage>{
+
+  //final items = List<String>.generate(3, (i) => "Item ${i + 1}");
+  final items = ['1', '10', '20', '50', '100'];
+
+  final TextEditingController eCtrl = new TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    return new Scaffold(
+      //drawer: new DrawerOnly(),
+        appBar: new AppBar(
+          title: new Text("Denominations"),
+        ),
+
+        body:
+        new Column(
+        children: <Widget>[
+          new TextField(
+            controller: eCtrl,
+            decoration: InputDecoration(
+                //border: InputBorder.none,
+                labelText: 'Add new value'
+            ),
+            keyboardType: TextInputType.number,
+            onSubmitted: (text) {
+              items.add(text);
+              eCtrl.clear();
+              setState(() {});
+            },
+        ),
+        new Expanded(child:
+            new ListView.builder(
+              itemCount: items.length,
+              itemBuilder: (context, index)
+              {
+                final item = items[index];
+
+                return Dismissible(
+                  key: Key(item),
+                  onDismissed: (direction) {
+                    setState(() {
+                        items.removeAt(index);
+                    });
+                    Scaffold
+                      .of(context)
+                      .showSnackBar(SnackBar(content: Text("$item removed")));
+                  },
+                  background: Container(
+                      color: Colors.red,
+                      alignment: FractionalOffset.centerRight,
+                      child: new IconButton(
+                          icon: Icon(Icons.delete),
+                        color: Colors.black,
+                      )
+
+                  ),
+                  child: ListTile(title: new Text(
+                    '$item',
+                    style: new TextStyle(
+                        fontSize: 20.0 ),
+                  )
+                  ),
+                );
+            },
+            )
+        )
+    ],
+        )
+    );
+  }
+}
+
+
 
 // Display the settings pages
 class SettingsPage extends StatelessWidget{
