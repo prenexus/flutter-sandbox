@@ -6,11 +6,9 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:convert';
-//import 'dart:async' show Future;
 import 'package:flutter/rendering.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
-//import 'package:material_search/material_search.dart';
 
 var listValues = ['1','11','20','50','100','250'];
 
@@ -57,6 +55,161 @@ const List _listOfCurrencies = [
 ];
 
 
+// Main function
+void main() async {
+  // Retrieve list of currencies
+  await _readPreferences();
+  await _getExchangeRate();
+
+// Denoms should have been loaded from prefs - if it hasnt, initialise a basic set
+  if (_denoms == null){
+    print ('Denoms is null after preferences read');
+    _denoms = listValues;
+  }
+
+  // Display the app
+  debugPaintSizeEnabled=false;
+  runApp(new MaterialApp(
+
+    home: new MyApp(),
+  ));
+}
+
+class MyApp extends StatefulWidget {
+  @override
+  MyAppState createState() => new MyAppState();
+}
+
+class MyAppState extends State<MyApp>  {
+  final _biggerFont = const TextStyle(fontSize: 24.0);
+
+  //Run this at app startup
+  @override
+  void initState(){
+    super.initState();
+  }
+
+  @override
+  void dispose(){
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return new Scaffold (
+      drawer: new DrawerOnly(),
+      appBar: new AppBar(
+        title: new Text('Currency Cheatsheet'),
+        actions: <Widget>[
+          new IconButton(
+              icon: new Icon(Icons.refresh),
+              onPressed: ()
+              {
+                setState(() {
+                  _getExchangeRate();
+                });
+              }
+          ),
+        ],
+      ),
+      body: _buildScreen(fromCurrency, toCurrency),
+    );
+  }
+
+  Widget _buildScreen(String fromCurrency, String toCurrency)  {
+    // Build the screen
+
+    //Set the use of text themes
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    return new Container(
+      padding: new EdgeInsets.all(32.0),
+      child: new Column(
+        children: [
+
+          new Row(
+            // Header
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: <Widget>[
+              new Container(
+                width: 100.0,
+                child:
+                new Text( fromCurrency ,style: textTheme.headline,
+                    textAlign: TextAlign.right),
+              ),
+
+              new Container(
+                width: 130.0,
+                child:
+                new Text( toCurrency , style: textTheme.headline, textAlign: TextAlign.right),
+
+              ),
+            ],
+          ),
+
+          new Divider(height: 32.0, color: Colors.black),
+
+          new Row(
+            //Detail row
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: <Widget>[
+
+              new Container(
+                width: 100.0,
+                child:
+                new Text("1.0000",style:_biggerFont, textAlign: TextAlign.right,),
+              ),
+
+              new Container(
+                width : 130.0,
+                child:
+                new Text( (_exchangeRate).toStringAsFixed(4), style:_biggerFont, textAlign: TextAlign.right,),
+              )
+            ],
+          ),
+
+          new Divider(height: 32.0, color: Colors.black),
+
+          // List the denominations from preferences
+          new Expanded(
+              child : new ListView.builder(
+                  padding: EdgeInsets.only(bottom: 8.0),
+                  itemBuilder: (BuildContext context, int index)
+                  {
+                    return new DenomsWidget(
+                      denomsAmount: _denoms[index],
+                      exchangeRate: _exchangeRate.toString(),
+                    );
+                  },
+                  itemCount: _denoms.length
+              )
+          ),
+
+          new Divider(height: 32.0, color: Colors.black),
+
+          new Row(
+            // Last update text
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: <Widget>[
+
+              new Text('Last updated: ' +
+                  _lastUpdated.day.toString() + '/' +
+                  _lastUpdated.month.toString() + '/' +
+                  _lastUpdated.year.toString() + ' ' +
+                  _lastUpdated.hour.toString() + ':' +
+                  _lastUpdated.minute.toString() + ' ' +
+                  _lastUpdated.timeZoneName.toString()
+                  ,textScaleFactor: .8),
+
+            ],
+          ),
+        ],
+      ),
+    );
+  } // Build screen
+} // MyApp
+
+
 class DenomsWidget extends StatefulWidget {
 
   final String denomsAmount;
@@ -78,8 +231,6 @@ class DenomsWidgetState extends State<DenomsWidget>{
       children: [
 
         Container(
-          //padding: new EdgeInsets.only(left: 40.0),
-          //alignment: Alignment.centerRight,
             width: 100.0,
             child:
             new Text(widget.denomsAmount,
@@ -89,7 +240,6 @@ class DenomsWidgetState extends State<DenomsWidget>{
 
         ),
         Container(
-          //padding: new EdgeInsets.only(left: 20.0),
           width: 130.0,
           child:
           new Text( (double.parse(widget.denomsAmount) *
@@ -100,10 +250,7 @@ class DenomsWidgetState extends State<DenomsWidget>{
         )
       ],
     );
-
-
-  }
-
+ }
 }
 
 class AwayCurrencyWidget extends StatefulWidget {
@@ -124,12 +271,12 @@ class AwayCurrencyWidgetState extends State<AwayCurrencyWidget>{
   var _isSelected = false;
 
   tappedItem(String currencyID) async{
-    print ("Tapped " + currencyID);
-
     _isSelected = true;
 
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('AwayCurrency', currencyID);
+    await _readPreferences();
+    await _getExchangeRate();
 
   }
 
@@ -155,12 +302,10 @@ class AwayCurrencyWidgetState extends State<AwayCurrencyWidget>{
                 }
             )
         ),
-
       ],
     );
   }
 }
-
 
 class CurrencyWidget extends StatefulWidget {
 
@@ -181,12 +326,13 @@ class CurrencyWidgetState extends State<CurrencyWidget>{
   var checkCurrency = 'USD';
 
   tappedItem(String currencyID) async{
-     print ("Tapped " + currencyID);
-
      _isSelected = true;
 
      SharedPreferences prefs = await SharedPreferences.getInstance();
      await prefs.setString('HomeCurrency', currencyID);
+
+     await _readPreferences();
+     await _getExchangeRate();
 
   }
 
@@ -212,12 +358,10 @@ class CurrencyWidgetState extends State<CurrencyWidget>{
           }
          )
         ),
-      
     ],
     );
   }
   }
-
 
 //This class displays the drawer used on the main pages. This is our settings page
 class DrawerOnly extends StatelessWidget{
@@ -269,8 +413,6 @@ class DrawerOnly extends StatelessWidget{
                 );
               },
             )
-
-
         ]
       ),
     );
@@ -290,8 +432,7 @@ _readPreferences() async{
 // This routine returns a rate for a given currency pair from free.currencyconverterapi.com
 _getExchangeRate() async {
 
-var fromToCurrency = fromCurrency + "_" + toCurrency;
-
+  var fromToCurrency = fromCurrency + "_" + toCurrency;
   var url = 'https://free.currencyconverterapi.com/api/v5/convert?q=' +
       fromToCurrency;
   var httpClient = new HttpClient();
@@ -314,33 +455,6 @@ var fromToCurrency = fromCurrency + "_" + toCurrency;
     print (exception.toString());
   }
 
-}
-
-// Main function
-void main() async {
-  // Retrieve list of currencies
-  await _readPreferences();
-  await _getExchangeRate();
-
-  debugPaintSizeEnabled=false;
-
-// Denoms should have been loaded from prefs - if it hasnt, initialise a basic set
-  if (_denoms == null){
-    print ('Denoms is null after preferences read');
-    _denoms = listValues;
-  }
-
-  // Display the app
-  debugPaintSizeEnabled=false;
-  runApp(new MaterialApp(
-
-    home: new MyApp(),
-  ));
-}
-
-class MyApp extends StatefulWidget {
-  @override
-  MyAppState createState() => new MyAppState();
 }
 
 
@@ -429,6 +543,7 @@ class _DenominationsPageWidgetState extends State<DenominationsPage>{
 
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('Denominations', items);
+    await _readPreferences();
 
   }
 
@@ -503,199 +618,3 @@ class _DenominationsPageWidgetState extends State<DenominationsPage>{
   }
 }
 
-// Display the settings pages
-class SettingsPage extends StatelessWidget{
-  @override
-  Widget build(BuildContext context)
-  {
-    return new Scaffold(
-      drawer: new DrawerOnly(),
-    appBar: new AppBar(
-        title: new Text("Settings"),
-      ),
-    body:
-    new ListView(
-            children: <Widget>[
-              new ListTile(
-                  leading: new Icon(Icons.attach_money),
-                  title: new Text ("Home Currency"),
-                onTap: ()
-                  {
-                     // Push currency list
-                      Navigator.push(
-                        context,
-                        new MaterialPageRoute(builder: (context) => new HomeCurrencyPage()),
-                      );
-                    },
-
-              ),
-              new ListTile(
-                  leading: new Icon(Icons.attach_money),
-                  title: new Text ("Away Currency"),
-                  onTap: ()
-                  {
-                    // Pick currency list
-                  }
-              ),
-            ],
-          ),
-    );
-
-  }
-}
-
-
-class MyAppState extends State<MyApp> {
-  final _biggerFont = const TextStyle(fontSize: 24.0);
-
-  //Run this at app startup
-  @override
-  void initState(){
-    super.initState();
-    print ('At init state. _denoms is ' + _denoms.toString());
-  }
-
-  @override
-  void dispose(){
-    super.dispose();
-    print ('At dispose state. _denoms is ' + _denoms.toString());
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return new Scaffold (
-      drawer: new DrawerOnly(),
-      appBar: new AppBar(
-        title: new Text('Currency Cheatsheet'),
-        actions: <Widget>[
-          new IconButton(
-            icon: new Icon(Icons.refresh),
-            onPressed: ()
-                {
-                  setState(() {
-                    _readPreferences();
-                    _getExchangeRate();
-                  });
-                }
-          ),
-
-        ],
-      ),
-
-      body: _buildScreen(fromCurrency, toCurrency),
-    );
-  }
-
-  //final TextEditingController _controller = new TextEditingController();
-
-  Widget _buildScreen(String fromCurrency, String toCurrency) {
-    // Build the screen
-    print ("At build screen. From Currency is currently:" + fromCurrency);
-    print ("At build screen. To currency is currently: " + toCurrency);
-    print ("At build screen. Denoms is: " + _denoms.toString());
-    //Set the use of text themes
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    //new Text('Display 3', style: textTheme.display3),
-    //new Text('Display 2', style: textTheme.display2),
-    //new Text('Display 1', style: textTheme.display1),
-    //new Text('Headline', style: textTheme.headline),
-    //new Text('Title', style: textTheme.title),
-    //new Text('Subheading', style: textTheme.subhead),
-    //new Text('Body 2', style: textTheme.body2),
-    //new Text('Body 1', style: textTheme.body1),
-    //new Text('Caption', style: textTheme.caption),
-    //new Text('BUTTON', style: textTheme.button),
-
-    return new Container(
-      padding: new EdgeInsets.all(32.0),
-      child: new Column(
-        children: [
-
-            new Row(
-              // Header
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: <Widget>[
-                new Container(
-                  width: 100.0,
-
-                  child:
-                    new Text( fromCurrency ,style: textTheme.headline,
-                    textAlign: TextAlign.right),
-                ),
-
-                new Container(
-                  width: 130.0,
-                    child:
-                    new Text( toCurrency , style: textTheme.headline, textAlign: TextAlign.right),
-
-                ),
-              ],
-            ),
-
-            new Divider(height: 32.0, color: Colors.black),
-
-            new Row(
-              //Detail row 1
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: <Widget>[
-
-                new Container(
-                    width: 100.0,
-                    child:
-                      new Text("1.0000",style:_biggerFont, textAlign: TextAlign.right,),
-
-                ),
-
-                new Container(
-                  width : 130.0,
-                    child:
-                    new Text( (_exchangeRate).toStringAsFixed(4), style:_biggerFont, textAlign: TextAlign.right,),
-
-                )
-              ],
-            ),
-
-            new Divider(height: 32.0, color: Colors.black),
-
-
-            // List the denominations from preferences
-            new Expanded(
-              child : new ListView.builder(
-                  padding: EdgeInsets.only(bottom: 8.0),
-                itemBuilder: (BuildContext context, int index)
-                {
-                  return new DenomsWidget(
-                    denomsAmount: _denoms[index],
-                    exchangeRate: _exchangeRate.toString(),
-                  );
-                },
-                  itemCount: _denoms.length
-                )
-            ),
-
-            new Divider(height: 32.0, color: Colors.black),
-
-            new Row(
-              // Last update text
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: <Widget>[
-
-                new Text('Last updated: ' +
-                    _lastUpdated.day.toString() + '/' +
-                    _lastUpdated.month.toString() + '/' +
-                    _lastUpdated.year.toString() + ' ' +
-                    _lastUpdated.hour.toString() + ':' +
-                    _lastUpdated.minute.toString() + ' ' +
-                    _lastUpdated.timeZoneName.toString()
-                    ,textScaleFactor: .8),
-
-              ],
-            ),
-
-
-
-        ],
-      ),
-    );
-  } // Build screen
-} // MyApp
