@@ -1,23 +1,21 @@
-// Issues :-
-// Reading preferences on startup doesnt refresh the screen and get the currencies correctly
-// Manual data entry isnt working
 
-//To do - list currencies
-// Query currencies from site on startup
-// Choose base currency
-// Choose conversion currency
+// TODO: Save and Load preferences
+// TODO: Manual data entry isnt working
+// TODO: Create a 'switch' button to reverse currencies
 
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:convert';
-import 'dart:async' show Future;
-//import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:material_search/material_search.dart';
+//import 'dart:async' show Future;
 
+import 'package:shared_preferences/shared_preferences.dart';
+//import 'package:material_search/material_search.dart';
+
+var listValues = ['1','11','20','50','100','250'];
 
 String fromCurrency = 'USD';
 String toCurrency = 'AUD';
+var _denoms;
 var _exchangeRate;
 var _lastUpdated;
 
@@ -41,32 +39,137 @@ const List _listOfCurrencies = [
   "currencyName": 'Japanese Yen',
   "currencySymbol": 'Y',
   "currencyID": 'JPY'
+},
+
+{
+  "currencyName": 'Rawandan Franc',
+  "currencySymbol": 'F',
+  "currencyID": 'RWF'
+},
+
+{
+  "currencyName": 'Ugandan Shilling',
+  "currencySymbol": 'S',
+  "currencyID": 'UGX'
 }
 
 ];
 
-//const _listValues = [1,10,20,50,100,250];
 
-class CurrencyWidget extends StatelessWidget{
+class AwayCurrencyWidget extends StatefulWidget {
+
   final String currencyName;
   final String currencySymbol;
   final String currencyID;
 
-  const CurrencyWidget({Key key, this.currencyName, this.currencySymbol, this.currencyID}) : super (key: key);
+  AwayCurrencyWidget({Key key, this.currencyName, this.currencySymbol, this.currencyID}) : super (key: key);
+
+  @override
+  AwayCurrencyWidgetState createState() =>
+      AwayCurrencyWidgetState();
+}
+
+class AwayCurrencyWidgetState extends State<AwayCurrencyWidget>{
+
+  var _isSelected = false;
+
+  tappedItem(String currencyID) async{
+    print ("Tapped " + currencyID);
+
+    _isSelected = true;
+
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('AwayCurrency', currencyID);
+
+  }
 
   @override
   Widget build(BuildContext context) {
-    return new Container(
-        decoration: new BoxDecoration(border: new Border.all(width: 1.0, color: Colors.grey), color: Colors.white70),
-        margin: new EdgeInsets.symmetric(vertical: 1.0),
-        child: new ListTile(
-          leading: new Text(currencySymbol),
-          title: new Text(currencyName),
-          subtitle: new Text(currencyID),
-          ),
+
+    return Column(
+      children: [
+        new Container(
+            decoration: new BoxDecoration(border: new Border.all(width: 1.0, color: Colors.grey), color: Colors.white70),
+            margin: new EdgeInsets.symmetric(vertical: 1.0),
+            child: new ListTile(
+                leading: new Text(widget.currencyID),
+                title: new Text(widget.currencyName),
+                subtitle: new Text(widget.currencySymbol),
+                trailing: new Icon (_isSelected ? Icons.check : null),
+
+                onTap: () {
+                  setState(() {
+                    tappedItem(widget.currencyID);
+                    Navigator.pop(context);
+                  });
+                }
+            )
+        ),
+
+      ],
     );
   }
 }
+
+
+
+
+class CurrencyWidget extends StatefulWidget {
+
+  final String currencyName;
+  final String currencySymbol;
+  final String currencyID;
+
+  CurrencyWidget({Key key, this.currencyName, this.currencySymbol, this.currencyID}) : super (key: key);
+
+  @override
+  CurrencyWidgetState createState() =>
+      CurrencyWidgetState();
+}
+
+class CurrencyWidgetState extends State<CurrencyWidget>{
+
+  var _isSelected = false;
+  var checkCurrency = 'USD';
+
+  tappedItem(String currencyID) async{
+     print ("Tapped " + currencyID);
+
+     _isSelected = true;
+
+     SharedPreferences prefs = await SharedPreferences.getInstance();
+     await prefs.setString('HomeCurrency', currencyID);
+
+  }
+
+  @override
+  Widget build(BuildContext context) {
+
+    return Column(
+    children: [
+        new Container(
+        decoration: new BoxDecoration(border: new Border.all(width: 1.0, color: Colors.grey), color: Colors.white70),
+        margin: new EdgeInsets.symmetric(vertical: 1.0),
+        child: new ListTile(
+          leading: new Text(widget.currencyID),
+          title: new Text(widget.currencyName),
+          subtitle: new Text(widget.currencySymbol),
+          trailing: new Icon (_isSelected ? Icons.check : null),
+
+          onTap: () {
+            setState(() {
+                tappedItem(widget.currencyID);
+                Navigator.pop(context);
+            });
+          }
+         )
+        ),
+      
+    ],
+    );
+  }
+  }
+
 
 //This class displays the drawer used on the main pages. This is our settings page
 class DrawerOnly extends StatelessWidget{
@@ -79,12 +182,12 @@ class DrawerOnly extends StatelessWidget{
               child: new Text('Settings'),
               decoration: new BoxDecoration(color: Colors.blue),
             ),
-
-            new ListTile(
+         new ListTile(
               title: new Text("Home Currency"),
               onTap: () {
                 // Push currency list
                 Navigator.pop(context);
+
                 Navigator.push(
                   context,
                   new MaterialPageRoute(
@@ -120,17 +223,26 @@ class DrawerOnly extends StatelessWidget{
             )
 
 
-          ]
+        ]
       ),
     );
   }
 }
 
+_readPreferences() async{
+
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+
+  fromCurrency = prefs.getString('HomeCurrency');
+  toCurrency = prefs.getString('AwayCurrency');
+  _denoms = prefs.getStringList('Denominations');
+
+}
 
 // This routine returns a rate for a given currency pair from free.currencyconverterapi.com
 _getExchangeRate() async {
 
-  var fromToCurrency = fromCurrency + "_" + toCurrency;
+var fromToCurrency = fromCurrency + "_" + toCurrency;
 
   var url = 'https://free.currencyconverterapi.com/api/v5/convert?q=' +
       fromToCurrency;
@@ -139,7 +251,7 @@ _getExchangeRate() async {
   try {
     var request = await httpClient.getUrl(Uri.parse(url));
     var response = await request.close();
-    if (response.statusCode == HttpStatus.OK) {
+    if (response.statusCode == HttpStatus.ok) {
       var jsonString = await response.transform(utf8.decoder).join();
       print(jsonString);
       Map<String, dynamic> decodedMap = json.decode(jsonString);
@@ -159,7 +271,14 @@ _getExchangeRate() async {
 // Main function
 void main() async {
   // Retrieve list of currencies
+  await _readPreferences();
   await _getExchangeRate();
+
+// Denoms should have been loaded from prefs - if it hasnt, initialise a basic set
+  if (_denoms == null){
+    print ('Denoms is null after preferences read');
+    _denoms = listValues;
+  }
 
   // Display the app
   runApp(new MaterialApp(
@@ -172,39 +291,63 @@ class MyApp extends StatefulWidget {
   MyAppState createState() => new MyAppState();
 }
 
-class HomeCurrencyPage extends StatelessWidget {
+
+class HomeCurrencyPage extends StatefulWidget {
+  // This class displays the list of denominations for selected currency
+  // Users can add or remove the denominations they need
+
+  @override
+  HomeCurrencyPageWidgetState createState() =>
+      HomeCurrencyPageWidgetState();
+}
+
+class HomeCurrencyPageWidgetState extends State<HomeCurrencyPage>{
+
+  //class HomeCurrencyPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return new Scaffold(
-        //drawer: new DrawerOnly(),
+
         appBar: new AppBar(
           title: new Text("Home Currency"),
         ),
         body:
           new ListView.builder(itemBuilder: (BuildContext context, int index){
+
             return new CurrencyWidget(
-              currencyID: _listOfCurrencies[index]['currencyID'],
               currencyName: _listOfCurrencies[index]['currencyName'],
+              currencyID: _listOfCurrencies[index]['currencyID'],
               currencySymbol: _listOfCurrencies[index]['currencySymbol'],
-            );
+                );
             },
             itemCount: _listOfCurrencies.length,
-          )
+
+    )
     );
   }
 }
 
-class AwayCurrencyPage extends StatelessWidget {
+class AwayCurrencyPage extends StatefulWidget {
+  // This class displays the list of denominations for selected currency
+  // Users can add or remove the denominations they need
+
+  @override
+  AwayCurrencyPageWidgetState createState() =>
+      AwayCurrencyPageWidgetState();
+}
+
+class AwayCurrencyPageWidgetState extends State<AwayCurrencyPage>{
+
   @override
   Widget build(BuildContext context) {
     return new Scaffold(
-      //drawer: new DrawerOnly(),
+
         appBar: new AppBar(
           title: new Text("Away Currency"),
         ),
         body:
         new ListView.builder(itemBuilder: (BuildContext context, int index){
-          return new CurrencyWidget(
+          return new AwayCurrencyWidget(
             currencyID: _listOfCurrencies[index]['currencyID'],
             currencyName: _listOfCurrencies[index]['currencyName'],
             currencySymbol: _listOfCurrencies[index]['currencySymbol'],
@@ -216,7 +359,6 @@ class AwayCurrencyPage extends StatelessWidget {
   }
 }
 
-
 class DenominationsPage extends StatefulWidget {
   // This class displays the list of denominations for selected currency
   // Users can add or remove the denominations they need
@@ -226,11 +368,17 @@ class DenominationsPage extends StatefulWidget {
       _DenominationsPageWidgetState();
 }
 
-
 class _DenominationsPageWidgetState extends State<DenominationsPage>{
 
-  //final items = List<String>.generate(3, (i) => "Item ${i + 1}");
-  final items = ['1', '10', '20', '50', '100'];
+  var items = _denoms;
+
+  // Save the list of denominations to the preferences file
+  _saveList() async{
+
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('Denominations', items);
+
+  }
 
   final TextEditingController eCtrl = new TextEditingController();
 
@@ -255,7 +403,7 @@ class _DenominationsPageWidgetState extends State<DenominationsPage>{
             onSubmitted: (text) {
               items.add(text);
               eCtrl.clear();
-              setState(() {});
+              setState(() {_saveList();});
             },
         ),
         new Expanded(child:
@@ -270,6 +418,9 @@ class _DenominationsPageWidgetState extends State<DenominationsPage>{
                   onDismissed: (direction) {
                     setState(() {
                         items.removeAt(index);
+                        print ('Removed from list' + items.toString());
+                        _saveList();
+
                     });
                     Scaffold
                       .of(context)
@@ -299,8 +450,6 @@ class _DenominationsPageWidgetState extends State<DenominationsPage>{
     );
   }
 }
-
-
 
 // Display the settings pages
 class SettingsPage extends StatelessWidget{
@@ -347,28 +496,24 @@ class SettingsPage extends StatelessWidget{
 class MyAppState extends State<MyApp> {
   final _biggerFont = const TextStyle(fontSize: 24.0);
 
-  var amount1 = 1;
-  var amount2 = 10;
-  var amount3 = 20;
-  var amount4 = 50;
-  var amount5 = 100;
+  var amount1 = _denoms[0];
+  var amount2 = _denoms[1];
+  var amount3 = _denoms[2];
+  var amount4 = _denoms[3];
+  var amount5 = _denoms[4];
 
   //Run this at app startup
   @override
   void initState(){
     super.initState();
-
+    print ('At init state. _denoms is ' + _denoms.toString());
   }
 
   @override
   void dispose(){
-
     super.dispose();
+    print ('At dispose state. _denoms is ' + _denoms.toString());
   }
-
-  // Get the exchange rate from free.currencyconverterapi.com
-  // query = from_to . e.g AUD_USD
-  // Returns a double value
 
   @override
   Widget build(BuildContext context) {
@@ -383,7 +528,11 @@ class MyAppState extends State<MyApp> {
                 {
                   //Need to refresh the widget?
                   //setState(_getExchangeRate());
-                  _getExchangeRate();
+
+                  setState(() {
+                    _readPreferences();
+                    _getExchangeRate();
+                  });
                 }
           ),
 
@@ -398,8 +547,9 @@ class MyAppState extends State<MyApp> {
 
   Widget _buildScreen(String fromCurrency, String toCurrency) {
     // Build the screen
-    print ("From Currency is currently:" + fromCurrency);
-    print ("To currency is currently: " + toCurrency);
+    print ("At build screen. From Currency is currently:" + fromCurrency);
+    print ("At build screen. To currency is currently: " + toCurrency);
+    print ("At build screen. Denoms is: " + _denoms.toString());
     //Set the use of text themes
     final TextTheme textTheme = Theme.of(context).textTheme;
     //new Text('Display 3', style: textTheme.display3),
@@ -442,10 +592,8 @@ class MyAppState extends State<MyApp> {
             new Row(
               children: <Widget>[
 
-
               ],
             ),
-
 
 
             new Row(
@@ -455,13 +603,13 @@ class MyAppState extends State<MyApp> {
 
                 new Column(
                   children: <Widget>[
-                    new Text(amount1.toString(),style:_biggerFont),
+                    new Text(_denoms[0].toString(),style:_biggerFont),
                   ],
                 ),
 
                 new Column(
                   children: <Widget>[
-                    new Text((amount1 *_exchangeRate).toStringAsFixed(4), style:_biggerFont),
+                    new Text((double.parse(_denoms[0].toString()) *_exchangeRate).toStringAsFixed(4), style:_biggerFont),
                   ],
                 )
 
@@ -479,13 +627,13 @@ class MyAppState extends State<MyApp> {
 
                 new Column(
                   children: <Widget>[
-                    new Text(amount2.toString(), style:_biggerFont),
+                    new Text(_denoms[1].toString(), style:_biggerFont),
                   ],
                 ),
 
                 new Column(
                   children: <Widget>[
-                    new Text((amount2 *_exchangeRate).toStringAsFixed(2), style:_biggerFont),
+                    new Text((double.parse(_denoms[0].toString()) *_exchangeRate).toStringAsFixed(2), style:_biggerFont),
                   ],
                 )
               ],
@@ -498,17 +646,19 @@ class MyAppState extends State<MyApp> {
 
                 new Column(
                   children: <Widget>[
-                    new Text(amount3.toString(),style:_biggerFont),
+                    new Text(_denoms[2].toString(),style:_biggerFont),
                   ],
                 ),
 
                 new Column(
                   children: <Widget>[
-                    new Text((amount3 *_exchangeRate).toStringAsFixed(2), style:_biggerFont),
+                    new Text((double.parse(_denoms[2].toString()) *_exchangeRate).toStringAsFixed(2), style:_biggerFont),
                   ],
                 )
               ],
             ),
+
+
 
             new Row(
               //Detail row 4
@@ -517,13 +667,13 @@ class MyAppState extends State<MyApp> {
 
                 new Column(
                   children: <Widget>[
-                    new Text(amount4.toString(),style:_biggerFont),
+                    new Text(_denoms[3].toString(),style:_biggerFont),
                   ],
                 ),
 
                 new Column(
                   children: <Widget>[
-                    new Text((amount4 *_exchangeRate).toStringAsFixed(2), style:_biggerFont),
+                    new Text((double.parse(_denoms[3].toString()) *_exchangeRate).toStringAsFixed(2), style:_biggerFont),
                   ],
                 )
 
@@ -538,13 +688,13 @@ class MyAppState extends State<MyApp> {
 
                 new Column(
                   children: <Widget>[
-                    new Text(amount5.toString(),style:_biggerFont),
+                    new Text(_denoms[4].toString(),style:_biggerFont),
                   ],
                 ),
 
                 new Column(
                   children: <Widget>[
-                    new Text((amount5 *_exchangeRate).toStringAsFixed(2), style:_biggerFont),
+                    new Text((double.parse(_denoms[4].toString()) *_exchangeRate).toStringAsFixed(2), style:_biggerFont),
                   ],
                 )
 
