@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:convert';
 //import 'dart:async' show Future;
+import 'package:flutter/rendering.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 //import 'package:material_search/material_search.dart';
@@ -55,6 +56,55 @@ const List _listOfCurrencies = [
 
 ];
 
+
+class DenomsWidget extends StatefulWidget {
+
+  final String denomsAmount;
+  final String exchangeRate;
+
+  DenomsWidget({Key key, this.denomsAmount, this.exchangeRate}) : super (key: key);
+
+  @override
+  DenomsWidgetState createState() =>
+        DenomsWidgetState();
+}
+
+class DenomsWidgetState extends State<DenomsWidget>{
+
+  @override
+  Widget build(BuildContext context) {
+    return Row (
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+
+        Container(
+          //padding: new EdgeInsets.only(left: 40.0),
+          //alignment: Alignment.centerRight,
+            width: 100.0,
+            child:
+            new Text(widget.denomsAmount,
+                textAlign: TextAlign.right,
+                style: new TextStyle(
+                    fontSize: 25.0))
+
+        ),
+        Container(
+          //padding: new EdgeInsets.only(left: 20.0),
+          width: 130.0,
+          child:
+          new Text( (double.parse(widget.denomsAmount) *
+              double.parse(widget.exchangeRate)).toStringAsFixed(2),
+              textAlign: TextAlign.right,
+              style: new TextStyle(
+                  fontSize: 25.0)),
+        )
+      ],
+    );
+
+
+  }
+
+}
 
 class AwayCurrencyWidget extends StatefulWidget {
 
@@ -110,8 +160,6 @@ class AwayCurrencyWidgetState extends State<AwayCurrencyWidget>{
     );
   }
 }
-
-
 
 
 class CurrencyWidget extends StatefulWidget {
@@ -274,6 +322,8 @@ void main() async {
   await _readPreferences();
   await _getExchangeRate();
 
+  debugPaintSizeEnabled=false;
+
 // Denoms should have been loaded from prefs - if it hasnt, initialise a basic set
   if (_denoms == null){
     print ('Denoms is null after preferences read');
@@ -281,7 +331,9 @@ void main() async {
   }
 
   // Display the app
+  debugPaintSizeEnabled=false;
   runApp(new MaterialApp(
+
     home: new MyApp(),
   ));
 }
@@ -496,12 +548,6 @@ class SettingsPage extends StatelessWidget{
 class MyAppState extends State<MyApp> {
   final _biggerFont = const TextStyle(fontSize: 24.0);
 
-  var amount1 = _denoms[0];
-  var amount2 = _denoms[1];
-  var amount3 = _denoms[2];
-  var amount4 = _denoms[3];
-  var amount5 = _denoms[4];
-
   //Run this at app startup
   @override
   void initState(){
@@ -526,9 +572,6 @@ class MyAppState extends State<MyApp> {
             icon: new Icon(Icons.refresh),
             onPressed: ()
                 {
-                  //Need to refresh the widget?
-                  //setState(_getExchangeRate());
-
                   setState(() {
                     _readPreferences();
                     _getExchangeRate();
@@ -570,140 +613,67 @@ class MyAppState extends State<MyApp> {
 
             new Row(
               // Header
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: <Widget>[
-                new Column(
-                  children: <Widget>[
-                    new Text( fromCurrency ,style: textTheme.headline),
-                  ],
+                new Container(
+                  width: 100.0,
+
+                  child:
+                    new Text( fromCurrency ,style: textTheme.headline,
+                    textAlign: TextAlign.right),
                 ),
 
-                new Column(
-                  children: <Widget>[
-                    new Text( toCurrency , style: textTheme.headline),
-                  ],
-                )
+                new Container(
+                  width: 130.0,
+                    child:
+                    new Text( toCurrency , style: textTheme.headline, textAlign: TextAlign.right),
 
+                ),
               ],
             ),
 
             new Divider(height: 32.0, color: Colors.black),
-
-            new Row(
-              children: <Widget>[
-
-              ],
-            ),
-
 
             new Row(
               //Detail row 1
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: <Widget>[
 
-                new Column(
-                  children: <Widget>[
-                    new Text(_denoms[0].toString(),style:_biggerFont),
-                  ],
+                new Container(
+                    width: 100.0,
+                    child:
+                      new Text("1.0000",style:_biggerFont, textAlign: TextAlign.right,),
+
                 ),
 
-                new Column(
-                  children: <Widget>[
-                    new Text((double.parse(_denoms[0].toString()) *_exchangeRate).toStringAsFixed(4), style:_biggerFont),
-                  ],
-                )
+                new Container(
+                  width : 130.0,
+                    child:
+                    new Text( (_exchangeRate).toStringAsFixed(4), style:_biggerFont, textAlign: TextAlign.right,),
 
-              ],
-
-            ),
-
-
-            new Divider(height: 32.0, color: Colors.black),
-
-            new Row(
-              //Detail row 2
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: <Widget>[
-
-                new Column(
-                  children: <Widget>[
-                    new Text(_denoms[1].toString(), style:_biggerFont),
-                  ],
-                ),
-
-                new Column(
-                  children: <Widget>[
-                    new Text((double.parse(_denoms[0].toString()) *_exchangeRate).toStringAsFixed(2), style:_biggerFont),
-                  ],
                 )
               ],
-            ),
-
-            new Row(
-              //Detail row 3
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: <Widget>[
-
-                new Column(
-                  children: <Widget>[
-                    new Text(_denoms[2].toString(),style:_biggerFont),
-                  ],
-                ),
-
-                new Column(
-                  children: <Widget>[
-                    new Text((double.parse(_denoms[2].toString()) *_exchangeRate).toStringAsFixed(2), style:_biggerFont),
-                  ],
-                )
-              ],
-            ),
-
-
-
-            new Row(
-              //Detail row 4
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: <Widget>[
-
-                new Column(
-                  children: <Widget>[
-                    new Text(_denoms[3].toString(),style:_biggerFont),
-                  ],
-                ),
-
-                new Column(
-                  children: <Widget>[
-                    new Text((double.parse(_denoms[3].toString()) *_exchangeRate).toStringAsFixed(2), style:_biggerFont),
-                  ],
-                )
-
-              ],
-
-            ),
-
-            new Row(
-              //Detail row 5
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: <Widget>[
-
-                new Column(
-                  children: <Widget>[
-                    new Text(_denoms[4].toString(),style:_biggerFont),
-                  ],
-                ),
-
-                new Column(
-                  children: <Widget>[
-                    new Text((double.parse(_denoms[4].toString()) *_exchangeRate).toStringAsFixed(2), style:_biggerFont),
-                  ],
-                )
-
-              ],
-
             ),
 
             new Divider(height: 32.0, color: Colors.black),
 
+
+            // List the denominations from preferences
+            new Expanded(
+              child : new ListView.builder(
+                  padding: EdgeInsets.only(bottom: 8.0),
+                itemBuilder: (BuildContext context, int index)
+                {
+                  return new DenomsWidget(
+                    denomsAmount: _denoms[index],
+                    exchangeRate: _exchangeRate.toString(),
+                  );
+                },
+                  itemCount: _denoms.length
+                )
+            ),
+
+            new Divider(height: 32.0, color: Colors.black),
 
             new Row(
               // Last update text
