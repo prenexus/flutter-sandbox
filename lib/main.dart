@@ -1,5 +1,4 @@
 
-// TODO: Save and Load preferences
 // TODO: Manual data entry isnt working
 // TODO: Create a 'switch' button to reverse currencies
 
@@ -87,6 +86,7 @@ class MyAppState extends State<MyApp>  {
   @override
   void initState(){
     super.initState();
+    _readPreferences();
   }
 
   @override
@@ -307,6 +307,7 @@ class AwayCurrencyWidgetState extends State<AwayCurrencyWidget>{
   }
 }
 
+
 class CurrencyWidget extends StatefulWidget {
 
   final String currencyName;
@@ -427,10 +428,26 @@ _readPreferences() async{
   toCurrency = prefs.getString('AwayCurrency');
   _denoms = prefs.getStringList('Denominations');
 
+  if (_denoms == null)
+    {
+      _denoms = listValues;
+    }
+
 }
 
 // This routine returns a rate for a given currency pair from free.currencyconverterapi.com
 _getExchangeRate() async {
+
+  if (fromCurrency == null){
+    fromCurrency = 'USD';
+  }
+
+  if (toCurrency == null) {
+    toCurrency = 'AUD';
+  }
+
+  //print ("From: " + fromCurrency);
+  //print ("To: " + toCurrency);
 
   var fromToCurrency = fromCurrency + "_" + toCurrency;
   var url = 'https://free.currencyconverterapi.com/api/v5/convert?q=' +
@@ -442,10 +459,10 @@ _getExchangeRate() async {
     var response = await request.close();
     if (response.statusCode == HttpStatus.ok) {
       var jsonString = await response.transform(utf8.decoder).join();
-      print(jsonString);
+      //print(jsonString);
       Map<String, dynamic> decodedMap = json.decode(jsonString);
       _exchangeRate = decodedMap['results'][fromToCurrency]['val'];
-      print(decodedMap['results'][fromToCurrency]['val']);
+     // print("Exchange Rate is " + decodedMap['results'][fromToCurrency]['val']);
       _lastUpdated = new DateTime.now();
     } else {
       print ('Error getting API data address:\nHttp status ${response.statusCode}');
