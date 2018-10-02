@@ -1,6 +1,11 @@
 
 // TODO: Manual data entry isnt working
 // TODO: Create a 'switch' button to reverse currencies
+// TODO: Sort list of currencies
+// TODO: Make the fonts nicer to look at
+// TODO: Pull to refresh exchange rate
+// TODO: Store a copy of exchange rate keys locally? eg AUDEUR = 1.0. Use when we have no wifi
+// TODO: Set Exchange rate to zero when changing currencies - force refresh via API?
 
 import 'package:flutter/material.dart';
 import 'dart:io';
@@ -9,7 +14,7 @@ import 'package:flutter/rendering.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-var listValues = ['1','11','20','50','100','250'];
+var listValues = ['1','10','20','50','100','250'];
 
 String fromCurrency = 'USD';
 String toCurrency = 'AUD';
@@ -372,7 +377,9 @@ class DrawerOnly extends StatelessWidget{
       child: new ListView(
           children: <Widget>[
             new DrawerHeader(
-              child: new Text('Settings'),
+              child: new Text('Settings',
+                style: new TextStyle(
+                fontSize: 25.0)),
               decoration: new BoxDecoration(color: Colors.blue),
             ),
          new ListTile(
@@ -427,6 +434,7 @@ _readPreferences() async{
   fromCurrency = prefs.getString('HomeCurrency');
   toCurrency = prefs.getString('AwayCurrency');
   _denoms = prefs.getStringList('Denominations');
+
 
   if (_denoms == null)
     {
@@ -558,6 +566,29 @@ class _DenominationsPageWidgetState extends State<DenominationsPage>{
   // Save the list of denominations to the preferences file
   _saveList() async{
 
+    List<int> intList = new List();
+
+    //Extract string list and parse to int list
+    for (var i=0; i < items.length; i++)
+      {
+        intList.add(int.parse(items[i]));
+      }
+
+      //Sort the new list
+      intList.sort();
+
+    //Build the array ready to repopulate
+    List<String> strList = new List();
+
+    // Pop it back into string format so we can save it
+    for (var q=0; q < intList.length; q++){
+      strList.add(intList[q].toString());
+    }
+
+    //Set items to the newly built strList
+    items = strList;
+
+    //Save it to disk
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('Denominations', items);
     await _readPreferences();
@@ -602,7 +633,7 @@ class _DenominationsPageWidgetState extends State<DenominationsPage>{
                   onDismissed: (direction) {
                     setState(() {
                         items.removeAt(index);
-                        print ('Removed from list' + items.toString());
+  //                      print ('Removed from list' + items.toString());
                         _saveList();
 
                     });
@@ -634,4 +665,3 @@ class _DenominationsPageWidgetState extends State<DenominationsPage>{
     );
   }
 }
-
