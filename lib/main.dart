@@ -1,16 +1,17 @@
 
-// TODO: Manual data entry isnt working
-// TODO: Create a 'switch' button to reverse currencies
-// TODO: Sort list of currencies
 // TODO: Make the fonts nicer to look at
-// TODO: Pull to refresh exchange rate
 // TODO: Store a copy of exchange rate keys locally? eg AUDEUR = 1.0. Use when we have no wifi
 // TODO: Set Exchange rate to zero when changing currencies - force refresh via API?
+// TODO: Help pages on startup
+// TODO: Make the currency list page better looking
+// TODO: Hints on currency list page for adding/removing (Help button?)
 
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/rendering.dart';
+import 'dart:async';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -65,16 +66,14 @@ void main() async {
   await _readPreferences();
   await _getExchangeRate();
 
-// Denoms should have been loaded from prefs - if it hasnt, initialise a basic set
+// Denoms should have been loaded from prefs - if it hasn't, initialise a basic set
   if (_denoms == null){
-    print ('Denoms is null after preferences read');
     _denoms = listValues;
   }
 
   // Display the app
   debugPaintSizeEnabled=false;
   runApp(new MaterialApp(
-
     home: new MyApp(),
   ));
 }
@@ -97,6 +96,29 @@ class MyAppState extends State<MyApp>  {
   @override
   void dispose(){
     super.dispose();
+  }
+
+  Future<Null> _handleRefresh() async {
+    await new Future.delayed(new Duration(seconds: 1));
+    setState(() {
+      _getExchangeRate();
+    });
+    return null;
+  }
+
+  void _switchCurrencies(){
+    var switchHome = fromCurrency;
+    var switchAway = toCurrency;
+
+    fromCurrency = switchAway;
+    toCurrency = switchHome;
+
+    setState(() {
+      _getExchangeRate();
+    }
+    );
+
+    return null;
   }
 
   @override
@@ -139,12 +161,21 @@ class MyAppState extends State<MyApp>  {
               new Container(
                 width: 100.0,
                 child:
-                new Text( fromCurrency ,style: textTheme.headline,
-                    textAlign: TextAlign.right),
+                new Text(fromCurrency ,style: textTheme.headline,
+                    textAlign: TextAlign.right
+                ),
               ),
 
               new Container(
-                width: 130.0,
+                width: 50.0,
+                child: new IconButton (onPressed: _switchCurrencies,
+                  icon: Icon(Icons.compare_arrows),
+                )
+              ),
+
+
+              new Container(
+                width: 50.0,
                 child:
                 new Text( toCurrency , style: textTheme.headline, textAlign: TextAlign.right),
 
@@ -176,7 +207,8 @@ class MyAppState extends State<MyApp>  {
           new Divider(height: 32.0, color: Colors.black),
 
           // List the denominations from preferences
-          new Expanded(
+          new Expanded(child:
+            new RefreshIndicator(
               child : new ListView.builder(
                   padding: EdgeInsets.only(bottom: 8.0),
                   itemBuilder: (BuildContext context, int index)
@@ -187,7 +219,9 @@ class MyAppState extends State<MyApp>  {
                     );
                   },
                   itemCount: _denoms.length
-              )
+              ),
+              onRefresh: _handleRefresh,
+            ),
           ),
 
           new Divider(height: 32.0, color: Colors.black),
@@ -278,6 +312,9 @@ class AwayCurrencyWidgetState extends State<AwayCurrencyWidget>{
   tappedItem(String currencyID) async{
     _isSelected = true;
 
+    //Set the exchange rate to 0 so we dont get a false read
+    _exchangeRate = 0.0;
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('AwayCurrency', currencyID);
     await _readPreferences();
@@ -337,6 +374,8 @@ class CurrencyWidgetState extends State<CurrencyWidget>{
      SharedPreferences prefs = await SharedPreferences.getInstance();
      await prefs.setString('HomeCurrency', currencyID);
 
+     //Set the exchange rate to 0 so we dont get a false read
+     _exchangeRate = 0.0;
      await _readPreferences();
      await _getExchangeRate();
 
@@ -376,14 +415,18 @@ class DrawerOnly extends StatelessWidget{
     return new Drawer(
       child: new ListView(
           children: <Widget>[
+            new Container(height: 100.0, child:
             new DrawerHeader(
+              padding: EdgeInsets.only(left: 10.0, top: 50.0),
               child: new Text('Settings',
-                style: new TextStyle(
-                fontSize: 25.0)),
+                  style: new TextStyle(fontSize: 23.0),
+              ),
               decoration: new BoxDecoration(color: Colors.blue),
             ),
+            ),
          new ListTile(
-              title: new Text("Home Currency"),
+              title: new Text("Local Currency", style: new TextStyle(fontSize: 16.0),),
+              leading: const Icon(Icons.airplanemode_active),
               onTap: () {
                 // Push currency list
                 Navigator.pop(context);
@@ -397,7 +440,8 @@ class DrawerOnly extends StatelessWidget{
             ),
 
             new ListTile(
-              title: new Text("Away Currency"),
+              title: new Text("Home Currency", style: new TextStyle(fontSize: 16.0),),
+              leading: const Icon(Icons.home),
               onTap: () {
                 // Push currency list
                 Navigator.pop(context);
@@ -410,7 +454,8 @@ class DrawerOnly extends StatelessWidget{
             ),
 
             new ListTile(
-              title: new Text("Denominations"),
+              title: new Text("Currency List", style: new TextStyle(fontSize: 16.0),),
+              leading: const Icon(Icons.monetization_on),
               onTap: () {
                 // Push currency list
                 Navigator.pop(context);
@@ -504,7 +549,6 @@ class HomeCurrencyPageWidgetState extends State<HomeCurrencyPage>{
         ),
         body:
           new ListView.builder(itemBuilder: (BuildContext context, int index){
-
             return new CurrencyWidget(
               currencyName: _listOfCurrencies[index]['currencyName'],
               currencyID: _listOfCurrencies[index]['currencyID'],
@@ -512,10 +556,9 @@ class HomeCurrencyPageWidgetState extends State<HomeCurrencyPage>{
                 );
             },
             itemCount: _listOfCurrencies.length,
-
-    )
+          )
     );
-  }
+   }
 }
 
 class AwayCurrencyPage extends StatefulWidget {
@@ -602,7 +645,7 @@ class _DenominationsPageWidgetState extends State<DenominationsPage>{
     return new Scaffold(
       //drawer: new DrawerOnly(),
         appBar: new AppBar(
-          title: new Text("Denominations"),
+          title: new Text("Currency List"),
         ),
 
         body:
@@ -622,6 +665,7 @@ class _DenominationsPageWidgetState extends State<DenominationsPage>{
             },
         ),
         new Expanded(child:
+       // new RefreshIndicator(child:
             new ListView.builder(
               itemCount: items.length,
               itemBuilder: (context, index)
@@ -658,10 +702,11 @@ class _DenominationsPageWidgetState extends State<DenominationsPage>{
                   ),
                 );
             },
-            )
-        )
+            ),
+      )
     ],
         )
     );
   }
+
 }
