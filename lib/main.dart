@@ -19,6 +19,7 @@ String toCurrency = 'AUD';
 var _denoms;
 var _exchangeRate;
 var _lastUpdated;
+// Manage the state of our widget. Used to show the snackbar when there is an error. We may not need this once the exchangerate refactor is done
 final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
 
 
