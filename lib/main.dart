@@ -1,10 +1,7 @@
-
-// TODO: Make the fonts nicer to look at
-// TODO: Store a copy of exchange rate keys locally? eg AUDEUR = 1.0. Use when we have no wifi
-// TODO: Set Exchange rate to zero when changing currencies - force refresh via API?
+// TODO: Make the fonts nicer to look at - use Table layout to get a better layout
 // TODO: Help pages on startup
-// TODO: Make the currency list page better looking
-// TODO: Hints on currency list page for adding/removing (Help button?)
+// TODO: Manual rate entry
+// TODO: Move _getExchange rate (or another function) inside the widget to see if that fixes refresh bugs (Stateful widget stuff)
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -12,8 +9,8 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/rendering.dart';
 import 'dart:async';
-
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 
 var listValues = ['1','10','20','50','100','250'];
 
@@ -22,6 +19,8 @@ String toCurrency = 'AUD';
 var _denoms;
 var _exchangeRate;
 var _lastUpdated;
+final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
+
 
 const List _listOfCurrencies = [
 {
@@ -30,19 +29,56 @@ const List _listOfCurrencies = [
     "currencySymbol": '\$'
 },
 {
-    "currencySymbol": '\$',
-    "currencyName": 'US Dollars',
-    "currencyID": 'USD'
+  "currencySymbol": '\$',
+  "currencyName": 'US Dollar',
+  "currencyID": 'USD'
 },
 {
-    "currencyName": 'Euro Dollars',
-    "currencySymbol": 'E',
-    "currencyID": 'EUR'
+  "currencySymbol": '\$',
+  "currencyName": 'Canadian Dollar',
+  "currencyID": 'CAD'
 },
+
+{
+  "currencyName": 'Euro Dollar',
+  "currencySymbol": '\€',
+  "currencyID": 'EUR'
+},
+
+{
+  "currencyID": 'GBP',
+  "currencyName": 'Great British Pound',
+  "currencySymbol": '\£'
+},
+
+{
+  "currencyID": 'NZD',
+  "currencyName": 'New Zealand Dollar',
+  "currencySymbol": '\$'
+},
+
+{
+  "currencyID": 'CNY',
+  "currencyName": 'Chinese Yuan',
+  "currencySymbol": '\¥'
+},
+
 {
   "currencyName": 'Japanese Yen',
-  "currencySymbol": 'Y',
+  "currencySymbol": '\¥',
   "currencyID": 'JPY'
+},
+
+{
+  "currencyID": 'INR',
+  "currencyName": 'Indian Rupee',
+  "currencySymbol": '\₹'
+},
+
+{
+  "currencyID": 'MXN',
+  "currencyName": 'Mexican Peso',
+  "currencySymbol": '\$'
 },
 
 {
@@ -90,7 +126,12 @@ class MyAppState extends State<MyApp>  {
   @override
   void initState(){
     super.initState();
-    _readPreferences();
+
+    setState(() {
+      _readPreferences();
+      _handleRefresh();
+    });
+
   }
 
   @override
@@ -100,9 +141,7 @@ class MyAppState extends State<MyApp>  {
 
   Future<Null> _handleRefresh() async {
     await new Future.delayed(new Duration(seconds: 1));
-    setState(() {
-      _getExchangeRate();
-    });
+    setState(() {_getExchangeRate();});
     return null;
   }
 
@@ -113,10 +152,7 @@ class MyAppState extends State<MyApp>  {
     fromCurrency = switchAway;
     toCurrency = switchHome;
 
-    setState(() {
-      _getExchangeRate();
-    }
-    );
+    setState(() {_getExchangeRate();});
 
     return null;
   }
@@ -124,6 +160,7 @@ class MyAppState extends State<MyApp>  {
   @override
   Widget build(BuildContext context) {
     return new Scaffold (
+      key: _scaffoldKey,
       drawer: new DrawerOnly(),
       appBar: new AppBar(
         title: new Text('Currency Cheatsheet'),
@@ -132,9 +169,7 @@ class MyAppState extends State<MyApp>  {
               icon: new Icon(Icons.refresh),
               onPressed: ()
               {
-                setState(() {
-                  _getExchangeRate();
-                });
+                setState(() {_getExchangeRate();});
               }
           ),
         ],
@@ -161,9 +196,16 @@ class MyAppState extends State<MyApp>  {
               new Container(
                 width: 100.0,
                 child:
-                new Text(fromCurrency ,style: textTheme.headline,
-                    textAlign: TextAlign.right
-                ),
+                    new GestureDetector(
+                      onTap: () {
+                        Navigator.push(context,
+                          new MaterialPageRoute(
+                              builder: (context) => new HomeCurrencyPage()),
+                        );
+                      },
+                      child:
+                        new Text(fromCurrency ?? '',style: textTheme.headline, textAlign: TextAlign.right),
+                    ),
               ),
 
               new Container(
@@ -177,9 +219,38 @@ class MyAppState extends State<MyApp>  {
               new Container(
                 width: 50.0,
                 child:
-                new Text( toCurrency , style: textTheme.headline, textAlign: TextAlign.right),
-
+                  new GestureDetector(
+                    onTap: () {
+                      Navigator.push(context,
+                        new MaterialPageRoute(builder: (context) => new AwayCurrencyPage()),
+                      );
+                    },
+                    child:
+                      new Text( toCurrency ?? '', style: textTheme.headline, textAlign: TextAlign.right),
+                  ),
               ),
+
+            ],
+          ),
+
+
+          new Row( mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: <Widget>[
+                new Container(
+                  width: 100.0,
+                  child:
+                    new Text("Local", textAlign: TextAlign.right),
+                ),
+
+                new Container(
+                  width:50.0,
+                ),
+
+                new Container(
+                  width: 50.0,
+                  child:
+                    new Text("Home", textAlign: TextAlign.right),
+                ),
             ],
           ),
 
@@ -227,19 +298,10 @@ class MyAppState extends State<MyApp>  {
           new Divider(height: 32.0, color: Colors.black),
 
           new Row(
-            // Last update text
+            // Last updated text
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
-
-              new Text('Last updated: ' +
-                  _lastUpdated.day.toString() + '/' +
-                  _lastUpdated.month.toString() + '/' +
-                  _lastUpdated.year.toString() + ' ' +
-                  _lastUpdated.hour.toString() + ':' +
-                  _lastUpdated.minute.toString() + ' ' +
-                  _lastUpdated.timeZoneName.toString()
-                  ,textScaleFactor: .8),
-
+              new Text('Last updated: ' + DateFormat('dd-MMM-yyyy - kk:mm').format(_lastUpdated),textScaleFactor: .8),
             ],
           ),
         ],
@@ -247,7 +309,6 @@ class MyAppState extends State<MyApp>  {
     );
   } // Build screen
 } // MyApp
-
 
 class DenomsWidget extends StatefulWidget {
 
@@ -313,11 +374,11 @@ class AwayCurrencyWidgetState extends State<AwayCurrencyWidget>{
     _isSelected = true;
 
     //Set the exchange rate to 0 so we dont get a false read
-    _exchangeRate = 0.0;
+    //_exchangeRate = 0.0;
 
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('AwayCurrency', currencyID);
-    await _readPreferences();
+    toCurrency = currencyID;
     await _getExchangeRate();
 
   }
@@ -349,7 +410,6 @@ class AwayCurrencyWidgetState extends State<AwayCurrencyWidget>{
   }
 }
 
-
 class CurrencyWidget extends StatefulWidget {
 
   final String currencyName;
@@ -375,7 +435,7 @@ class CurrencyWidgetState extends State<CurrencyWidget>{
      await prefs.setString('HomeCurrency', currencyID);
 
      //Set the exchange rate to 0 so we dont get a false read
-     _exchangeRate = 0.0;
+     //_exchangeRate = 0.0;
      await _readPreferences();
      await _getExchangeRate();
 
@@ -429,6 +489,7 @@ class DrawerOnly extends StatelessWidget{
               leading: const Icon(Icons.airplanemode_active),
               onTap: () {
                 // Push currency list
+
                 Navigator.pop(context);
 
                 Navigator.push(
@@ -465,7 +526,22 @@ class DrawerOnly extends StatelessWidget{
                       builder: (context) => new DenominationsPage()),
                 );
               },
+            ),
+
+            new ListTile(
+              title: new Text("Help", style: new TextStyle(fontSize: 16.0),),
+              leading: const Icon(Icons.help),
+              onTap: () {
+                // Push currency list
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  new MaterialPageRoute(
+                      builder: (context) => new HelpPage()),
+                );
+              },
             )
+
         ]
       ),
     );
@@ -480,7 +556,6 @@ _readPreferences() async{
   toCurrency = prefs.getString('AwayCurrency');
   _denoms = prefs.getStringList('Denominations');
 
-
   if (_denoms == null)
     {
       _denoms = listValues;
@@ -491,6 +566,8 @@ _readPreferences() async{
 // This routine returns a rate for a given currency pair from free.currencyconverterapi.com
 _getExchangeRate() async {
 
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+
   if (fromCurrency == null){
     fromCurrency = 'USD';
   }
@@ -498,9 +575,6 @@ _getExchangeRate() async {
   if (toCurrency == null) {
     toCurrency = 'AUD';
   }
-
-  //print ("From: " + fromCurrency);
-  //print ("To: " + toCurrency);
 
   var fromToCurrency = fromCurrency + "_" + toCurrency;
   var url = 'https://free.currencyconverterapi.com/api/v5/convert?q=' +
@@ -512,17 +586,43 @@ _getExchangeRate() async {
     var response = await request.close();
     if (response.statusCode == HttpStatus.ok) {
       var jsonString = await response.transform(utf8.decoder).join();
-      //print(jsonString);
+
       Map<String, dynamic> decodedMap = json.decode(jsonString);
       _exchangeRate = decodedMap['results'][fromToCurrency]['val'];
-     // print("Exchange Rate is " + decodedMap['results'][fromToCurrency]['val']);
       _lastUpdated = new DateTime.now();
+
+      print ('Exchange rate is ' + _exchangeRate.toString());
+      print ('Currency pair is ' + fromToCurrency);
+
+      //Save the keypair exchange rate and last updated date
+      prefs.setDouble(fromToCurrency, _exchangeRate);
+      prefs.setString(fromToCurrency + 'date', _lastUpdated.toString() );
+
+      //_scaffoldKey.currentState.initState();
+
     } else {
-      print ('Error getting API data address:\nHttp status ${response.statusCode}');
+      //print ('Error getting API data address:\nHttp status ${response.statusCode}');
+      // Assume no connection to web service
+      // Read rates from saved prefs
+      _exchangeRate = prefs.getDouble(fromCurrency + "_" + toCurrency) ?? 0.0;
+
+      // Can only store strings, so read last updated date into a string
+      var _lastUpdatedString = prefs.getString(fromCurrency + "_" + toCurrency + "date") ?? new DateTime.now().toString();
+      // Parse last updated back to a date/time object
+      _lastUpdated = DateTime.parse(_lastUpdatedString);
     }
   } catch (exception) {
     print ('Failed getting API data');
     print (exception.toString());
+
+    _scaffoldKey.currentState.showSnackBar(SnackBar(content: new Text('Error. Returning last known rates'),duration: new Duration(seconds: 5),));
+    _exchangeRate = prefs.getDouble(fromCurrency + "_" + toCurrency) ?? 0.0;
+
+    // Can only store strings, so read last updated date into a string
+   var _lastUpdatedString = prefs.getString(fromCurrency + "_" + toCurrency + "date") ?? new DateTime.now().toString();
+    // Parse last updated back to a date/time object
+    _lastUpdated = DateTime.parse(_lastUpdatedString);
+
   }
 
 }
@@ -545,7 +645,7 @@ class HomeCurrencyPageWidgetState extends State<HomeCurrencyPage>{
     return new Scaffold(
 
         appBar: new AppBar(
-          title: new Text("Home Currency"),
+          title: new Text("Local Currency"),
         ),
         body:
           new ListView.builder(itemBuilder: (BuildContext context, int index){
@@ -577,7 +677,7 @@ class AwayCurrencyPageWidgetState extends State<AwayCurrencyPage>{
     return new Scaffold(
 
         appBar: new AppBar(
-          title: new Text("Away Currency"),
+          title: new Text("Home Currency"),
         ),
         body:
         new ListView.builder(itemBuilder: (BuildContext context, int index){
@@ -589,6 +689,50 @@ class AwayCurrencyPageWidgetState extends State<AwayCurrencyPage>{
         },
           itemCount: _listOfCurrencies.length,
         )
+    );
+  }
+}
+
+
+class HelpPage extends StatefulWidget {
+  // This class displays the list of denominations for selected currency
+  // Users can add or remove the denominations they need
+
+  @override
+  HelpPageWidgetState createState() =>
+      HelpPageWidgetState();
+}
+
+class HelpPageWidgetState extends State<HelpPage> {
+
+  @override
+  Widget build(BuildContext context) {
+    return new Scaffold(
+      appBar: new AppBar(
+        title: new Text("Help"),
+      ),
+      body:
+      new Container(
+        padding: new EdgeInsets.all(32.0),
+        child: 
+          new Column(
+
+            children: <Widget>[
+              new RichText(text: TextSpan(style: new TextStyle(fontSize: 16.0, color:Colors.black),
+                  children: <TextSpan>[
+                    TextSpan(text: 'Currency Cheatsheet\n\n', style: TextStyle(fontSize: 24.0, fontWeight: FontWeight.bold)),
+                    TextSpan(text: 'A simple currency converter designed to show common denominations at a glance.'),
+                    TextSpan(text: '\n\n', style: TextStyle(fontSize: 24.0, fontWeight: FontWeight.bold)),
+                    TextSpan(text: 'Usage\n\n', style: TextStyle(fontSize: 21.0, fontWeight: FontWeight.bold)),
+                    TextSpan(text: 'Select the currency where you are currently located. \n\mNext, choose the currency of the country you are from.\n\n'),
+                    TextSpan(text: 'Modify the currency list to show your common conversions. You might like to pick the cost of a coffee or a burger\n\n'),
+                    TextSpan(text: 'Refresh to get the latest conversion rate'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+      ),
     );
   }
 }
