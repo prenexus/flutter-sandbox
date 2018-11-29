@@ -17,11 +17,10 @@ var listValues = ['1','10','20','50','100','250'];
 String fromCurrency = 'USD';
 String toCurrency = 'AUD';
 var _denoms;
-var _exchangeRate;
-var _lastUpdated;
+
+var _lastUpdated = DateTime.now();
 // Manage the state of our widget. Used to show the snackbar when there is an error. We may not need this once the exchangerate refactor is done
 final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
-
 
 const List _listOfCurrencies = [
 {
@@ -101,7 +100,7 @@ const List _listOfCurrencies = [
 void main() async {
   // Retrieve list of currencies
   await _readPreferences();
-  await _getExchangeRate();
+  //await _getExchangeRate();
 
 // Denoms should have been loaded from prefs - if it hasn't, initialise a basic set
   if (_denoms == null){
@@ -110,9 +109,10 @@ void main() async {
 
   // Display the app
   debugPaintSizeEnabled=false;
-  runApp(new MaterialApp(
+ runApp(new MaterialApp(
     home: new MyApp(),
   ));
+
 }
 
 class MyApp extends StatefulWidget {
@@ -122,6 +122,134 @@ class MyApp extends StatefulWidget {
 
 class MyAppState extends State<MyApp>  {
   final _biggerFont = const TextStyle(fontSize: 24.0);
+  var _exchangeRateLocal = 0.0;
+  var _exchangeRateGlobal ="";
+
+  // Start new code -----
+
+  Future<String>_futureExchangeRate() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    if (fromCurrency == null){fromCurrency = 'USD';}
+    if (toCurrency == null) {toCurrency = 'AUD';}
+
+    var fromToCurrency = fromCurrency + "_" + toCurrency;
+    var url = 'https://free.currencyconverterapi.com/api/v5/convert?q=' + fromToCurrency;
+    var httpClient = new HttpClient();
+
+    try {
+      var request = await httpClient.getUrl(Uri.parse(url));
+      var response = await request.close();
+      if (response.statusCode == HttpStatus.ok) {
+        var jsonString = await response.transform(utf8.decoder).join();
+
+        Map<String, dynamic> decodedMap = json.decode(jsonString);
+        _exchangeRateLocal = decodedMap['results'][fromToCurrency]['val'];
+        _lastUpdated = new DateTime.now();
+
+        //Save the keypair exchange rate and last updated date
+        prefs.setDouble(fromToCurrency, _exchangeRateLocal);
+        prefs.setString(fromToCurrency + 'date', _lastUpdated.toString() );
+
+      } else {
+        // Assume no connection to web service
+        // Read rates from saved prefs
+        _exchangeRateLocal = prefs.getDouble(fromCurrency + "_" + toCurrency) ?? 1.0;
+
+        // Can only store strings, so read last updated date into a string
+        var _lastUpdatedString = prefs.getString(fromCurrency + "_" + toCurrency + "date") ?? new DateTime.now().toString();
+
+        // Parse last updated back to a date/time object
+        _lastUpdated = DateTime.parse(_lastUpdatedString);
+      }
+    } catch (exception) {
+      print ('Failed getting API data');
+      print (exception.toString());
+
+      _scaffoldKey.currentState.showSnackBar(SnackBar(content: new Text('Error. Returning last known rates'),duration: new Duration(seconds: 5),));
+      _exchangeRateLocal = prefs.getDouble(fromCurrency + "_" + toCurrency) ?? 1.0;
+
+      // Can only store strings, so read last updated date into a string
+      var _lastUpdatedString = prefs.getString(fromCurrency + "_" + toCurrency + "date") ?? new DateTime.now().toString();
+
+      // Parse last updated back to a date/time object
+      _lastUpdated = DateTime.parse(_lastUpdatedString);
+
+    }
+      //_exchangeRateGlobal = _exchangeRateLocal.toString();
+
+    return _exchangeRateGlobal.toString();
+  }
+
+  // End new code -----
+
+  _asyncExchangeRate() async {
+
+    var lastRate = 0.0;
+    lastRate = _exchangeRateLocal;
+
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    if (fromCurrency == null){
+      fromCurrency = 'USD';
+    }
+
+    if (toCurrency == null) {
+      toCurrency = 'AUD';
+    }
+
+    var fromToCurrency = fromCurrency + "_" + toCurrency;
+    var url = 'https://free.currencyconverterapi.com/api/v5/convert?q=' +
+        fromToCurrency;
+    var httpClient = new HttpClient();
+
+    try {
+      var request = await httpClient.getUrl(Uri.parse(url));
+      var response = await request.close();
+      if (response.statusCode == HttpStatus.ok) {
+        var jsonString = await response.transform(utf8.decoder).join();
+
+        Map<String, dynamic> decodedMap = json.decode(jsonString);
+        _exchangeRateLocal = decodedMap['results'][fromToCurrency]['val'];
+        _lastUpdated = new DateTime.now();
+
+        //Save the keypair exchange rate and last updated date
+        prefs.setDouble(fromToCurrency, _exchangeRateLocal);
+        prefs.setString(fromToCurrency + 'date', _lastUpdated.toString() );
+
+      } else {
+        // Assume no connection to web service
+        // Read rates from saved prefs
+        _exchangeRateLocal = prefs.getDouble(fromCurrency + "_" + toCurrency) ?? 1.0;
+
+        // Can only store strings, so read last updated date into a string
+        var _lastUpdatedString = prefs.getString(fromCurrency + "_" + toCurrency + "date") ?? new DateTime.now().toString();
+
+        // Parse last updated back to a date/time object
+        _lastUpdated = DateTime.parse(_lastUpdatedString);
+      }
+    } catch (exception) {
+      print ('Failed getting API data');
+      print (exception.toString());
+
+      _scaffoldKey.currentState.showSnackBar(SnackBar(content: new Text('Error. Returning last known rates'),duration: new Duration(seconds: 5),));
+      _exchangeRateLocal = prefs.getDouble(fromCurrency + "_" + toCurrency) ?? 1.0;
+
+      // Can only store strings, so read last updated date into a string
+      var _lastUpdatedString = prefs.getString(fromCurrency + "_" + toCurrency + "date") ?? new DateTime.now().toString();
+
+      // Parse last updated back to a date/time object
+      _lastUpdated = DateTime.parse(_lastUpdatedString);
+
+    }
+
+    if (lastRate != _exchangeRateLocal) {
+      //Something has changed - refresh
+      print ("Rate changed - setting State");
+      setState(() {});
+    }
+  }
+
 
   //Run this at app startup
   @override
@@ -142,7 +270,8 @@ class MyAppState extends State<MyApp>  {
 
   Future<Null> _handleRefresh() async {
     await new Future.delayed(new Duration(seconds: 1));
-    setState(() {_getExchangeRate();});
+    _asyncExchangeRate();
+
     return null;
   }
 
@@ -153,36 +282,35 @@ class MyAppState extends State<MyApp>  {
     fromCurrency = switchAway;
     toCurrency = switchHome;
 
-    setState(() {_getExchangeRate();});
+    _asyncExchangeRate();
 
+    setState(() {});
     return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    return new Scaffold (
-      key: _scaffoldKey,
-      drawer: new DrawerOnly(),
-      appBar: new AppBar(
-        title: new Text('Currency Cheatsheet'),
-        actions: <Widget>[
-          new IconButton(
-              icon: new Icon(Icons.refresh),
-              onPressed: ()
-              {
-                setState(() {_getExchangeRate();});
-              }
-          ),
-        ],
-      ),
-      body: _buildScreen(fromCurrency, toCurrency),
-    );
+      return Scaffold(
+        key: _scaffoldKey,
+        drawer: new DrawerOnly(),
+        appBar: new AppBar(
+          title: new Text('Currency Cheatsheet'),
+          actions: <Widget>[
+            new IconButton(icon: new Icon(Icons.refresh),
+                onPressed: (){setState(() {_handleRefresh();});}
+            ),
+          ],
+        ),
+        body: _buildScreen(fromCurrency, toCurrency),
+
+      );
+
   }
 
   Widget _buildScreen(String fromCurrency, String toCurrency)  {
     // Build the screen
-
     //Set the use of text themes
+
     final TextTheme textTheme = Theme.of(context).textTheme;
 
     return new Container(
@@ -218,7 +346,7 @@ class MyAppState extends State<MyApp>  {
 
 
               new Container(
-                width: 50.0,
+                width: 60.0,
                 child:
                   new GestureDetector(
                     onTap: () {
@@ -271,7 +399,13 @@ class MyAppState extends State<MyApp>  {
               new Container(
                 width : 130.0,
                 child:
-                new Text( (_exchangeRate).toStringAsFixed(4), style:_biggerFont, textAlign: TextAlign.right,),
+                    FutureBuilder(
+                      initialData: "---",
+                      future: _futureExchangeRate(),
+                      builder: (context, snapshot) {
+                        return Text(snapshot.data.toString(), style:_biggerFont, textAlign: TextAlign.right);
+                      },
+                    )
               )
             ],
           ),
@@ -281,14 +415,15 @@ class MyAppState extends State<MyApp>  {
           // List the denominations from preferences
           new Expanded(child:
             new RefreshIndicator(
-              child : new ListView.builder(
+              child :
+
+              new ListView.builder(
                   padding: EdgeInsets.only(bottom: 8.0),
                   itemBuilder: (BuildContext context, int index)
                   {
                     return new DenomsWidget(
                       denomsAmount: _denoms[index],
-                      exchangeRate: _exchangeRate.toString(),
-                    );
+                      exchangeRate: _exchangeRateGlobal ?? "1.0",);
                   },
                   itemCount: _denoms.length
               ),
@@ -302,7 +437,7 @@ class MyAppState extends State<MyApp>  {
             // Last updated text
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
-              new Text('Last updated: ' + DateFormat('dd-MMM-yyyy - kk:mm').format(_lastUpdated),textScaleFactor: .8),
+              new Text('Last retrieved: ' + DateFormat('dd-MMM-yyyy - kk:mm').format(_lastUpdated),textScaleFactor: .8),
             ],
           ),
         ],
@@ -343,8 +478,7 @@ class DenomsWidgetState extends State<DenomsWidget>{
         Container(
           width: 130.0,
           child:
-          new Text( (double.parse(widget.denomsAmount) *
-              double.parse(widget.exchangeRate)).toStringAsFixed(2),
+              new Text( (double.parse(widget.denomsAmount)* double.parse(widget.exchangeRate)).toString() ,
               textAlign: TextAlign.right,
               style: new TextStyle(
                   fontSize: 25.0)),
@@ -375,12 +509,9 @@ class AwayCurrencyWidgetState extends State<AwayCurrencyWidget>{
     _isSelected = true;
 
     //Set the exchange rate to 0 so we dont get a false read
-    //_exchangeRate = 0.0;
-
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('AwayCurrency', currencyID);
     toCurrency = currencyID;
-    await _getExchangeRate();
 
   }
 
@@ -427,18 +558,13 @@ class CurrencyWidget extends StatefulWidget {
 class CurrencyWidgetState extends State<CurrencyWidget>{
 
   var _isSelected = false;
-  var checkCurrency = 'USD';
 
   tappedItem(String currencyID) async{
      _isSelected = true;
 
      SharedPreferences prefs = await SharedPreferences.getInstance();
      await prefs.setString('HomeCurrency', currencyID);
-
-     //Set the exchange rate to 0 so we dont get a false read
-     //_exchangeRate = 0.0;
-     await _readPreferences();
-     await _getExchangeRate();
+     fromCurrency = currencyID;
 
   }
 
@@ -563,71 +689,6 @@ _readPreferences() async{
     }
 
 }
-
-// This routine returns a rate for a given currency pair from free.currencyconverterapi.com
-_getExchangeRate() async {
-
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-
-  if (fromCurrency == null){
-    fromCurrency = 'USD';
-  }
-
-  if (toCurrency == null) {
-    toCurrency = 'AUD';
-  }
-
-  var fromToCurrency = fromCurrency + "_" + toCurrency;
-  var url = 'https://free.currencyconverterapi.com/api/v5/convert?q=' +
-      fromToCurrency;
-  var httpClient = new HttpClient();
-
-  try {
-    var request = await httpClient.getUrl(Uri.parse(url));
-    var response = await request.close();
-    if (response.statusCode == HttpStatus.ok) {
-      var jsonString = await response.transform(utf8.decoder).join();
-
-      Map<String, dynamic> decodedMap = json.decode(jsonString);
-      _exchangeRate = decodedMap['results'][fromToCurrency]['val'];
-      _lastUpdated = new DateTime.now();
-
-      print ('Exchange rate is ' + _exchangeRate.toString());
-      print ('Currency pair is ' + fromToCurrency);
-
-      //Save the keypair exchange rate and last updated date
-      prefs.setDouble(fromToCurrency, _exchangeRate);
-      prefs.setString(fromToCurrency + 'date', _lastUpdated.toString() );
-
-      //_scaffoldKey.currentState.initState();
-
-    } else {
-      //print ('Error getting API data address:\nHttp status ${response.statusCode}');
-      // Assume no connection to web service
-      // Read rates from saved prefs
-      _exchangeRate = prefs.getDouble(fromCurrency + "_" + toCurrency) ?? 0.0;
-
-      // Can only store strings, so read last updated date into a string
-      var _lastUpdatedString = prefs.getString(fromCurrency + "_" + toCurrency + "date") ?? new DateTime.now().toString();
-      // Parse last updated back to a date/time object
-      _lastUpdated = DateTime.parse(_lastUpdatedString);
-    }
-  } catch (exception) {
-    print ('Failed getting API data');
-    print (exception.toString());
-
-    _scaffoldKey.currentState.showSnackBar(SnackBar(content: new Text('Error. Returning last known rates'),duration: new Duration(seconds: 5),));
-    _exchangeRate = prefs.getDouble(fromCurrency + "_" + toCurrency) ?? 0.0;
-
-    // Can only store strings, so read last updated date into a string
-   var _lastUpdatedString = prefs.getString(fromCurrency + "_" + toCurrency + "date") ?? new DateTime.now().toString();
-    // Parse last updated back to a date/time object
-    _lastUpdated = DateTime.parse(_lastUpdatedString);
-
-  }
-
-}
-
 
 class HomeCurrencyPage extends StatefulWidget {
   // This class displays the list of denominations for selected currency
