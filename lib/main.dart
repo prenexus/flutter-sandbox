@@ -40,7 +40,7 @@ const List _listOfCurrencies = [
 },
 
 {
-  "currencyName": 'Euro Dollar',
+  "currencyName": 'Euro',
   "currencySymbol": '\€',
   "currencyID": 'EUR'
 },
